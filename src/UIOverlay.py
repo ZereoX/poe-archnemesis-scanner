@@ -2,7 +2,6 @@ from configparser import ConfigParser
 import keyboard
 import tkinter as tk
 import sys
-from win32clipboard import OpenClipboard, EmptyClipboard, SetClipboardText, CloseClipboard
 
 from typing import Dict, List, Tuple
 from DataClasses import PoeWindowInfo
@@ -267,10 +266,15 @@ class UIOverlay:
         else:
             search_string = tree.item
 
-        OpenClipboard()
-        EmptyClipboard()
-        SetClipboardText('^('+search_string+')')
-        CloseClipboard()
+        # OpenClipboard()
+        # EmptyClipboard()
+        # SetClipboardText('^('+search_string+')')
+        # CloseClipboard()
+
+        tk.withdraw()
+        tk.clipboard_clear()
+        tk.clipboard_append('^('+search_string+')')
+        tk.destroy()
 
     def _destroy_tooltip_and_clear_highlights(self, _) -> None:
         if self._tooltip_window is not None:

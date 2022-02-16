@@ -6,8 +6,14 @@ from DataClasses import PoeWindowInfo
 from ImageScanner import ImageScanner
 from UIOverlay import UIOverlay
 
-import win32gui
-from win32clipboard import *
+if sys.platform.startswith('win'):
+    import win32gui
+    from win32clipboard import *
+elif sys.platform.startswith('linux'):
+    import gi
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Wnck', '3.0')
+    from gi.repository import Gtk, Wnck
 
 import tkinter as tk
 from tkinter import messagebox
@@ -15,6 +21,9 @@ from tkinter import messagebox
 from PIL import ImageGrab
 
 from RecipeShopper import RecipeShopper
+
+def isLinux():
+    return sys.platform.startswith('linux')
 
 def show_warning(text: str) -> None:
     messagebox.showwarning('poe-archnemesis-scanner', text)
@@ -26,16 +35,40 @@ def show_error_and_die(text: str) -> None:
 
 def get_poe_window_info() -> PoeWindowInfo:
     info = PoeWindowInfo()
-    hwnd = win32gui.FindWindow(None, 'Path of Exile')
-    if hwnd == 0:
-        show_error_and_die('Path of Exile is not running.')
 
-    x0, y0, x1, y1 = win32gui.GetWindowRect(hwnd)
+    windowRect = [0,0,0,0]
+    clientRect = [0,0,0,0]
+
+    if isLinux():
+        screen = Wnck.Screen.get_default()
+        screen.force_update()
+
+        hwnd = None
+
+        for window in screen.get_windows():
+            if window.get_name() == 'Path of Exile':
+                hwnd = window
+
+        if hwnd:
+            windowRect = hwnd.get_geometry()
+            clientRect = hwnd.get_client_window_geometry()
+        else:
+            show_error_and_die('Path of Exile is not running.')
+    else:
+        hwnd = win32gui.FindWindow(None, 'Path of Exile')
+
+        if hwnd == 0:
+            show_error_and_die('Path of Exile is not running.')
+
+        windowRect = win32gui.GetWindowRect(hwnd)
+        clientRect = win32gui.GetClientRect(hwnd)
+
+    x0, y0, x1, y1 = windowRect
     info.x = x0
     info.y = y0
     info.width = x1 - x0
     info.height = y1 - y0
-    x0, y0, x1, y1 = win32gui.GetClientRect(hwnd)
+    x0, y0, x1, y1 = clientRect
     info.client_width = x1 - x0
     info.client_height = y1 - y0
 
@@ -62,6 +95,10 @@ def calculate_default_scale(info: PoeWindowInfo) -> float:
     constant = 1440.0 / (source_image_height * 0.91)
     scale = info.client_height / (source_image_height * constant)
     return scale
+
+# Initiate GTK since we are not using Gtk.main()
+if isLinux():
+    Gtk.init([])
 
 # Create root as early as possible to initialize some modules (e.g. ImageTk)
 root = tk.Tk()
